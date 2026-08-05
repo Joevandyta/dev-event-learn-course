@@ -34,7 +34,7 @@ const BookingSchema = new Schema<IBooking>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 /**
@@ -44,10 +44,28 @@ BookingSchema.pre<IBooking>("save", async function () {
   if (this.isModified("eventId")) {
     const eventExists = await Event.exists({ _id: this.eventId });
     if (!eventExists) {
-      throw new Error(`Referenced Event with ID '${this.eventId}' does not exist.`);
+      throw new Error(
+        `Referenced Event with ID '${this.eventId}' does not exist.`,
+      );
     }
   }
 });
 
-export const Booking = models.Booking || model<IBooking>("Booking", BookingSchema);
+//Create index on eventId for faster queries
+BookingSchema.index({ eventId: 1 });
+
+//Create compount index for common queries(event bookings by date)
+BookingSchema.index({ eventId: 1, createdAt: -1 });
+
+//create index on email for user booking lookups
+BookingSchema.index({ email: 1 });
+
+//Enforce one booking per event per email
+BookingSchema.index(
+  { eventId: 1, email: 1 },
+  { unique: true, name: "uniq_event_email" },
+);
+
+export const Booking =
+  models.Booking || model<IBooking>("Booking", BookingSchema);
 export default Booking;
