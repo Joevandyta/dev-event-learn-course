@@ -2,8 +2,10 @@ import BookEvent from "@/components/BookEvent";
 import EventCard from "@/components/EventCard";
 import { IEvent } from "@/database";
 import { getSimilarEventsBySlug } from "@/lib/actions/event.actions";
+import { cacheLife } from "next/cache";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -48,18 +50,18 @@ const TagsSection = ({ tags }: { tags: string[] }) => {
     </div>
   );
 };
-
-const EventDetailsPage = async ({
+const EventContent = async ({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) => {
+  "use cache";
+  cacheLife("hours");
   const { slug } = await params;
+
   let event;
   try {
-    const response = await fetch(`${BASE_URL}/api/events/${slug}`, {
-      next: { revalidate: 60 },
-    });
+    const response = await fetch(`${BASE_URL}/api/events/${slug}`);
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -149,7 +151,7 @@ const EventDetailsPage = async ({
             ) : (
               <p className="text-sm">Be the first to book a spot</p>
             )}
-            <BookEvent />
+            <BookEvent eventId={event._id} slug={slug} />
           </div>
         </aside>
       </div>
@@ -171,6 +173,19 @@ const EventDetailsPage = async ({
             ))}
         </div>
       </div>
+    </section>
+  );
+};
+const EventDetailsPage = async ({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) => {
+  return (
+    <section id="event">
+      <Suspense fallback={<div>Loading event…</div>}>
+        <EventContent params={params} />
+      </Suspense>
     </section>
   );
 };
